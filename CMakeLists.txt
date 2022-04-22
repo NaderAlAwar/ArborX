@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
+
+SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_MODULE_PATH})
+
 project(ArborX CXX)
 
 find_package(Kokkos 3.4 REQUIRED CONFIG)
@@ -132,6 +135,7 @@ endif()
 option(ARBORX_ENABLE_TESTS "Enable tests" OFF)
 option(ARBORX_ENABLE_EXAMPLES "Enable examples" OFF)
 option(ARBORX_ENABLE_BENCHMARKS "Enable benchmarks" OFF)
+option(ARBORX_ENABLE_PYTHON "Enable Python bindings" OFF)
 
 if(ARBORX_ENABLE_TESTS OR ARBORX_ENABLE_EXAMPLES OR ARBORX_ENABLE_BENCHMARKS)
   enable_testing()
@@ -169,4 +173,10 @@ if(ARBORX_ENABLE_EXAMPLES)
 endif()
 if(ARBORX_ENABLE_BENCHMARKS)
   add_subdirectory(benchmarks)
+endif()
+
+if(ARBORX_ENABLE_PYTHON)
+  INCLUDE(KokkosPythonOptions)        # cache options and various variable settings
+  INCLUDE(KokkosPythonPackages)       # Python Interp
+  add_subdirectory(bindings)
 endif()
