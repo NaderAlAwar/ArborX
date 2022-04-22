@@ -1,3 +1,4 @@
+import struct
 from typing import List
 
 import kokkos
@@ -10,16 +11,15 @@ def loadData(filename: str, binary: bool = True, max_num_points: int = -1):
     mode_print: str = "binary" if binary else "text"
     print(f"Reading in {filename} in {mode_print} mode...")
 
-    read_mode: str
     if binary:
-        raise NotImplementedError()
-        read_mode = "rb"
+        with open(filename, "rb") as f:
+            contents = f.read()
+            info = struct.unpack("i" * ((8) // 4), contents[:8])
+            data = struct.unpack("f" * ((len(contents)- 8) // 4), contents[8:])
     else:
-        read_mode = "r"
-
-    with open(filename, read_mode) as f:
-        info: List[str] = f.readline().strip().split(" ")
-        data = f.readlines()
+        with open(filename, "rb") as f:
+            info: List[str] = f.readline().strip().split(" ")
+            data = f.readlines()
 
     num_points: int = int(info[0])
     dim: int = int(info[1])
@@ -29,13 +29,17 @@ def loadData(filename: str, binary: bool = True, max_num_points: int = -1):
     if max_num_points > 0 and max_num_points < num_points:
         num_points = max_num_points
 
+    v = pk.View([num_points, dim], pk.float)
     if not binary:
-        v = pk.View([num_points, dim], pk.float)
-
         for index, line in enumerate(data):
             point_data: List[float] = [float(f) for f in line.strip().split(" ")]
             for d in range(dim):
                 v[index][d] = point_data[d]
+    else:
+        for index, data in enumerate(data):
+            point_id: int = index // dim
+            dimension: int = index % dim
+            v[point_id][dimension] = data
 
     print("done")
     print(f"Read in {num_points} {dim}D points")
