@@ -32,12 +32,16 @@ def loadData(filename: str, binary: bool = True, max_num_points: int = -1):
     v = pk.View([num_points, dim], pk.float)
     if not binary:
         for index, line in enumerate(data):
+            if index >= num_points:
+                break
             point_data: List[float] = [float(f) for f in line.strip().split(" ")]
             for d in range(dim):
                 v[index][d] = point_data[d]
     else:
         for index, data in enumerate(data):
             point_id: int = index // dim
+            if point_id >= num_points:
+                break
             dimension: int = index % dim
             v[point_id][dimension] = data
 
@@ -141,9 +145,13 @@ def run():
     # args go here
     algorithm: str = "dbscan"
     filename: str = "input.txt"
+    filename: str = "hacc_37M.arborx"
     max_num_points: int = -1
+    max_num_points: int = 10
     binary: bool = False
+    binary: bool = True
     eps: float = 1
+    eps: float = 0.042
     cluster_min_size: int = 1
     core_min_size: int = 2
     verify: bool = False

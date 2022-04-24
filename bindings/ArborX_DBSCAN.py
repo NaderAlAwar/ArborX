@@ -21,7 +21,7 @@ def finalize_labels(i: int, cluster_sizes: pk.View1D[int], labels: pk.View1D[int
     if vstat != old:
         labels[i] = vstat
 
-    pk.atomic_fetch_add(cluster_sizes, [labels[i]], i)
+    pk.atomic_increment(cluster_sizes, [labels[i]])
 
 @pk.workunit
 def mark_noise(i: int, cluster_sizes: pk.View1D[int], labels: pk.View1D[int]):
