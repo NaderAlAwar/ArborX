@@ -2,7 +2,20 @@ import kokkos
 import pykokkos as pk
 
 import PyArborX
+from implementation import Implementation
 
+class Parameters:
+    def __init__(self):
+        self._print_timers: bool = False
+        self._implementation = Implementation.FDBSCAN_DenseBox
+
+    def setPrintTimers(self, print_timers: bool):
+        self._print_timers = print_timers
+        return self
+
+    def setImplementation(self, impl: Implementation):
+        self._implementation = impl
+        return self
 
 @pk.workunit
 def iota(i: int, v: pk.View1D[int], value: int):
@@ -34,7 +47,7 @@ class PrimitivesWithRadius:
         self.eps = eps
 
 
-def dbscan(exec_space, primitives, eps: float, core_min_size: int, parameters):
+def dbscan(exec_space, primitives, eps: float, core_min_size: int, parameters = Parameters()):
     assert(eps > 0)
     assert(core_min_size >= 2)
 
@@ -46,7 +59,7 @@ def dbscan(exec_space, primitives, eps: float, core_min_size: int, parameters):
 
     pk.parallel_for(n, iota, v=labels, value=0)
 
-    if True:
+    if parameters._implementation is Implementation.FDBSCAN:
         bvh = PyArborX.BVH(exec_space, primitives.array)
         predicates = PyArborX.PrimitivesWithRadius(primitives.array, eps)
 

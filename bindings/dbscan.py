@@ -1,3 +1,4 @@
+import argparse
 import struct
 from typing import List
 
@@ -6,6 +7,7 @@ import pykokkos as pk
 
 import ArborX_DBSCAN
 import PyArborX
+from implementation import Implementation
 
 def loadData(filename: str, binary: bool = True, max_num_points: int = -1):
     mode_print: str = "binary" if binary else "text"
@@ -142,29 +144,42 @@ def sortAndFilterClusters(
 def run():
     pk.set_default_space(pk.Cuda)
     pk.enable_uvm()
+
     # args go here
-    algorithm: str = "dbscan"
-    filename: str = "input.txt"
-    filename: str = "hacc_37M.arborx"
-    max_num_points: int = -1
-    max_num_points: int = 10
-    binary: bool = False
-    binary: bool = True
-    eps: float = 1
-    eps: float = 0.042
-    cluster_min_size: int = 1
-    core_min_size: int = 2
-    verify: bool = False
-    num_samples: int = -1
-    filename_labels: str = ""
-    print_dbscan_timers: bool = False
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--algorithm", default="dbscan", type=str, help="algorithm (dbscan | mst)")
+    parser.add_argument("--filename", type=str, help="filename containing data")
+    parser.add_argument("--binary", action="store_true", help="binary file indicator")
+    parser.add_argument("--max_num_points", default=-1, type=int, help="max number of points to read in")
+    parser.add_argument("--eps", type=float, help="DBSCAN eps")
+    parser.add_argument("--cluster_min_size", default=1, type=int, help="minimum cluster size")
+    parser.add_argument("--core_min_size", default=2, type=int, help="DBSCAN min_pts")
+    parser.add_argument("--verify", action="store_true", help="verify connected components")
+    parser.add_argument("--samples", default=-1, type=int, help="number of samples")
+    parser.add_argument("--labels", default="", type=str, help="clutering results output")
+    parser.add_argument("--print_dbscan_timers", action="store_true", help="print dbscan timers")
+    parser.add_argument("--impl", default="FDBSCAN", help="(implementation (\"fdbscan\" or \"fdbscan-densebox\"))")
+    args = parser.parse_args()
+
+    algorithm: str = args.algorithm
+    filename: str = args.filename
+    binary: bool = args.binary
+    max_num_points: int = args.max_num_points
+    eps: float = args.eps
+    cluster_min_size: int = args.cluster_min_size
+    core_min_size: int = args.core_min_size
+    verify: bool = args.verify
+    num_samples: int = args.samples
+    filename_labels: str = args.labels
+    print_dbscan_timers: bool = args.print_dbscan_timers
+    impl = Implementation[args.impl]
 
     # Print out the runtime parameters
     print(f"algorithm         : {algorithm}")
     if algorithm == "dbscan":
         print(f"eps               : {eps}")
         print(f"cluster min size  : {cluster_min_size}")
-        # print("implementation    : %s\n", ss.str().c_str());
+        print(f"implementation    : {impl.value}")
         print(f"verify            : {verify}")
 
     print(f"minpts            : {core_min_size}")
@@ -179,18 +194,23 @@ def run():
     primitives = loadData(filename, binary, max_num_points)
     exec_space = PyArborX.Cuda()
 
-    labels = ArborX_DBSCAN.dbscan(exec_space, primitives, eps, core_min_size, None)
+    if algorithm == "dbscan":
+        labels = ArborX_DBSCAN.dbscan(
+            exec_space, primitives, eps, core_min_size,
+            ArborX_DBSCAN.Parameters()
+                .setPrintTimers(print_dbscan_timers)
+                .setImplementation(impl))
 
-    cluster_indices = pk.View([0], dtype=int)
-    cluster_offset = pk.View([0], dtype=int)
+        cluster_indices = pk.View([0], dtype=int)
+        cluster_offset = pk.View([0], dtype=int)
 
-    sortAndFilterClusters(pk.Cuda, labels, cluster_indices, cluster_offset, cluster_min_size)
+        sortAndFilterClusters(pk.Cuda, labels, cluster_indices, cluster_offset, cluster_min_size)
 
-    num_clusters: int = cluster_offset.extent(0) - 1
-    num_cluster_points: int = cluster_indices.extent(0)
+        num_clusters: int = cluster_offset.extent(0) - 1
+        num_cluster_points: int = cluster_indices.extent(0)
 
-    print(f"\n#clusters       : {num_clusters}")
-    print(f"#cluster points : {num_cluster_points} [{(100. * num_cluster_points / primitives.extent(0)):.2f}]")
+        print(f"\n#clusters       : {num_clusters}")
+        print(f"#cluster points : {num_cluster_points} [{(100. * num_cluster_points / primitives.extent(0)):.2f}]")
 
 
 if __name__ == "__main__":
